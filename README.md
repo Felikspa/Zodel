@@ -11,11 +11,6 @@ The primary goal of ZODEL is to serve as a testbed for innovative features in LL
 * **Dynamic Model Routing**: A Classifier-Labels method that automatically routes user queries to the most suitable model based on the nature of the task.  
 * **Zflow Language**: A concise, powerful, and intuitive domain-specific language (DSL) for designing and executing complex, multi-step LLM workflows.
 
-\<\!--  
-建议在此处插入一张 ZODEL UI 的动态 GIF 或截图，  
-展示聊天界面、模型选择和设置面板。  
-\--\>  
-\<\!-- \--\>
 
 ## **2\. Core Features**
 
@@ -34,7 +29,7 @@ The primary goal of ZODEL is to serve as a testbed for innovative features in LL
 
 ### **1\. Clone the Repository**
 
-git clone \[https://github.com/your-username/zodel.git\](https://github.com/your-username/zodel.git)  
+git clone \[https://github.com/Felikspa/Zodel.git\]
 cd zodel
 
 ### **2\. Install Dependencies**
@@ -79,7 +74,7 @@ This mode automates the selection of the most appropriate LLM for a given task. 
 #### **How It Works**
 
 1. **Input**: The user sends a prompt.  
-2. **Classification**: A lightweight **Classifier Model (CM)** analyzes the prompt based on a specific system prompt.  
+2. **Classification**: A **Classifier Model (CM)** analyzes the prompt based on a specific system prompt.  
 3. **Labeling**: The CM outputs a single-word **Label** (e.g., logical, nonlogical) that categorizes the user's intent.  
 4. **Routing**: The framework maps this label to a pre-configured **Output Model (OM)**.  
 5. **Execution**: The original user prompt is sent to the selected OM for the final, streamed response.
@@ -120,10 +115,6 @@ The core of Zflow is the workflow statement, which defines the flow of data betw
 
 The following script first asks Model A and Model B to analyze a question from two different perspectives in parallel. Then, it sends the original question (i) along with both of their answers to Model C for a final, synthesized response.
 
-\<\!--  
-建议在此处插入 Zflow 流程图  
-\--\>  
-\<\!-- \--\>
 
 \# 1\. Variable Assignments  
 A \= GenStudio:qwen2.5-72b-instruct  
