@@ -10,22 +10,24 @@ Zflow 语言解析与执行模块。
 import re
 import json
 from typing import Callable, Generator, List, Dict, Optional
-
+try:
+    from app.helper import get_model_type
+except:
+    pass
 class ZflowRunner:
     """
     解析并执行 Zflow 脚本的运行器。
     它将 Zflow 代码解析为变量和 AST，然后通过回调函数执行 LLM 调用。
     """
 
-    def __init__(self, stream_callback: Callable):
+    def __init__(self, stream_callback: Callable, embedding_callback: Callable=None):
         """
-        初始化 Zflow 运行器。
-
-        Args:
-            stream_callback (Callable): 一个用于调用 LLM API 的外部流式函数。
-                其签名应为: stream_callback(provider, model, messages) -> Generator[str, None, None]
+        初始化运行器。
+        :param stream_callback: 用于调用 Chat LLM API 的流式函数。
+        :param embedding_callback: 用于调用 Embedding LLM API 的函数。
         """
         self.stream_chat = stream_callback
+        self.get_embeddings = embedding_callback
         
         # 正则表达式定义
         self.operator_pattern = re.compile(r'^\s*([A-Z])_([a-z][a-zA-Z0-9]*)(?:\((i[a-zA-Z0-9]*)\))?\s*$')
@@ -100,6 +102,10 @@ class ZflowRunner:
             
             value = normalized_text[value_start_index:value_end_index].strip()
             
+            # 如果值以逗号结尾，说明逗号是语句分隔符，而不是值的一部分。
+            if value.endswith(','):
+                value = value[:-1].strip()
+
             # 格式化并存储，用于 debug 输出
             formatted_statements.append(f"{var_name} = {value}")
             
@@ -264,14 +270,38 @@ class ZflowRunner:
                 
                 try:
                     provider, pure_model_name = model_name.split(':', 1)
-                    full_node_output = ""
-                    for chunk in self.stream_chat(provider.lower(), pure_model_name, messages):
-                        yield chunk
-                        full_node_output += chunk
-                    stage_outputs.append(full_node_output)
+                    provider = provider.lower()
+                    
+                    # --- 核心改动：根据模型类型进行调度 ---
+                    model_type = get_model_type(pure_model_name)
+                    
+                    if model_type == 'chat':
+                        # b. 构建 chat messages
+                        messages = [
+                            {"role": "system", "content": prompt_content},
+                            {"role": "user", "content": final_input}
+                        ]
+                        # c. 调用 Chat LLM 并流式输出
+                        full_node_output = ""
+                        for chunk in self.stream_chat(provider, pure_model_name, messages):
+                            yield chunk
+                            full_node_output += chunk
+                        stage_outputs.append(full_node_output)
+
+                    elif model_type == 'embedding':
+                        # b. Embedding 模型不需要 system prompt，直接使用 final_input
+                        yield "(Running Embedding model...)\n"
+                        embedding_vector = self.get_embeddings(provider, pure_model_name, final_input)
+                        
+                        # c. 将向量结果转换为字符串输出到前端
+                        output_str = f"Embedding Vector (first 5 dims): {embedding_vector[:5]}..."
+                        yield output_str
+                        stage_outputs.append(output_str) # 下一阶段的输入是这个字符串
+
                 except Exception as e:
                     yield f"\n\n**[Execution Error]** Failed to call model {model_name}: {e}"
             
+            # d. 更新下一步的输入
             current_input_str = "\n\n".join(stage_outputs)
 
         yield "\n\n---\n**Zflow Execution Finished**\n---"
@@ -309,13 +339,12 @@ class ZflowRunner:
 if __name__ == "__main__":
     # 此代码块仅在直接运行 `python zflow_runner.py` 时执行，用于独立测试
     test_code ='''
-    A = GenStudio:qwen-max, B = GenStudio:deepseek-v2
-    C=GenStudio:glm-4-9b-chat
-    p1 = '你是一个历史学家，请从维特根斯坦思想的内在哲学脉络角度，解释他晚期思想转变的原因。'
-    p2 = '你是一个社会学家，请从二战等外部社会环境影响的角度，解释维特根斯坦晚期思想转变的原因。'
-    p3 = '综合以下两种角度的分析，给出一个关于维特根斯坦思想转变的全面回答。'
-    i1 = '维特根斯坦的哲学思想在晚期为什么会发生与其早期思想几乎截然相反的重大转变？'
-    i1 -> {A_p1, B_p2} -> C_p3
+A= GenStudio:qwen2.5-vl-72b-instruct,B= GenStudio:deepseek-v3,C=GenStudio:deepseek-v3.2-exp
+i=’维特根斯坦晚期为什么会发生重大的思想转变，与早期思想截然不同？’
+p1=’接下来我会给你一道题目，你的任务是解决它的一部分，具体地说，你需要对发生这种情况的内部原因给出简明扼要的解答，其他角度的回答和多余的输出都应该避免。’
+p2=’ 接下来我会给你一道题目，你的任务是解决它的一部分，具体地说，你需要对发生这种情况的外部原因给出简明扼要的解答，其他角度的回答和多余的输出都应该避免。’
+p3=’现在有两个模型分别对我给出的题目做出两个角度的解答，请你帮我把它们的观点简明扼要地整合到一起，形成一份完整的答案。如果你没有收到来自前两个模型的回答，就直接返回错误信息。’
+i->{A_p1,B_p2}->C_p3(i)
     '''
     dummy_callback = lambda provider, model, messages: iter([f"Streaming response from {provider}:{model}... "])
     runner_for_debug = ZflowRunner(stream_callback=dummy_callback)

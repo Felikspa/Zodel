@@ -9,7 +9,7 @@ import re
 from typing import Dict, Generator, List, Tuple, Optional, Union
 import gradio as gr
 
-from .helper import extract_model_name, infer_provider_from_model, stream_chat
+from .helper import extract_model_name, get_embeddings, get_model_type, infer_provider_from_model, stream_chat
 from .config import DEFAULT_SYSTEM_PROMPT,logger
 from .zflow_runner import ZflowRunner
 
@@ -100,10 +100,12 @@ class StreamHandler:
         yield f"**[Zflow Workflow executing...]**\n```zflow\n{zflow_code}\n```\n\n"
 
         # 实例化 ZflowRunner，并将核心的 stream_chat 函数作为回调传入
-        runner = ZflowRunner(stream_callback=stream_chat)
+        runner = ZflowRunner(
+            stream_callback=stream_chat,
+            embedding_callback=get_embeddings
+        )
 
         try:
-            # 调用执行器并直接 yield 其输出
             yield from runner.execute_stream(code=zflow_code)
         except Exception as e:
             yield f"\n\n**[Critical Zflow Error]** An unexpected error occurred during execution: {e}"
@@ -159,6 +161,13 @@ class StreamHandler:
             model_name_pure = extract_model_name(model_to_use)
             provider = infer_provider_from_model(model_to_use)
             
+            # 检查模型类型，防止在普通聊天中使用 Embedding 模型
+            if get_model_type(model_name_pure) != 'chat':
+                raise ValueError(f"Model '{model_name_pure}' is an embedding model and cannot be used for chat.")
+
+            # 组合最终的显示前缀
+            final_display_prefix = f"{display_prefix}**[{model_to_use}]**: "
+
             # 调用核心流式函数
             stream = stream_chat(provider, model_name_pure, messages)
             
