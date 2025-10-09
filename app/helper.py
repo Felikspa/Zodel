@@ -9,7 +9,6 @@
 """
 
 import os
-import logging
 import requests
 import subprocess
 from typing import List, Dict, Generator, Optional, Union
