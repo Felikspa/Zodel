@@ -1,6 +1,6 @@
 # **ZODEL: An Experimental LLM Orchestration Framework**
 
-**Designed by ZAVIER LI (李加祥)**
+**Designed by ZAVIER LI**
 
 ## **1\. Introduction**
 
@@ -142,7 +142,7 @@ ZODEL is an evolving project with a clear vision for the future of LLM orchestra
 
 ## **7\. Author**
 
-This project was designed and developed by **ZAVIER LI (李加祥)**.
+This project was designed and developed by **ZAVIER LI**.
 
 ## **8\. License**
 
