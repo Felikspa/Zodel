@@ -1,0 +1,11 @@
+gradio
+ollama
+openai
+subprocess
+os
+re
+typing
+time
+requests
+logging
+dotenv
