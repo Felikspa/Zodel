@@ -1,0 +1,34 @@
+services:
+  api:
+    build:
+      context: .
+      dockerfile: Dockerfile.api
+    container_name: zodel-api
+    environment:
+      - DATABASE_URL=sqlite:///data/zodel.db
+      - OPENAI_API_KEY
+      - OPENAI_BASE_URL
+      - GENSTUDIO_API_KEY
+      - GENSTUDIO_BASE_URL
+      - ZODEL_AUTH_SECRET
+    volumes:
+      - zodel_data:/app/data
+      - zodel_rag:/app/data/rag
+    ports:
+      - "8000:8000"
+
+  web:
+    build:
+      context: ./web
+      dockerfile: Dockerfile.web
+    container_name: zodel-web
+    environment:
+      - NEXT_PUBLIC_ZODEL_API_BASE=http://api:8000
+    depends_on:
+      - api
+    ports:
+      - "3000:3000"
+
+volumes:
+  zodel_data:
+  zodel_rag:
